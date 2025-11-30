@@ -1,0 +1,10 @@
+test_variant,paywall_type,purchasing_users
+Plans,onboarding,231
+Plans,feature,42
+Plans,laggard,14
+Plans,intended,4
+Standard,onboarding,373
+Standard,feature,48
+Standard,laggard,24
+Standard,intended,8
+Standard,subscription_management,1
