@@ -1,0 +1,11 @@
+flow,users
+tool_opened > show_paywalls > skip_paywalls > rc_cancellation,27
+image_generated > press_generate > image_generated > rc_cancellation,26
+show_paywalls > skip_paywalls > avatar_creation > rc_cancellation,19
+payment_initiated > payment_cancelled > skip_paywalls > rc_cancellation,17
+skip_paywalls > show_paywalls > skip_paywalls > rc_cancellation,16
+payment_success > ftue_landmarkt > tool_opened > rc_cancellation,14
+skip_paywalls > avatar_creation > tool_opened > rc_cancellation,13
+show_paywalls > payment_initiated > payment_cancelled > rc_cancellation,12
+show_paywalls > skip_paywalls > show_paywalls > rc_cancellation,12
+avatar_creation > show_paywalls > skip_paywalls > rc_cancellation,11
