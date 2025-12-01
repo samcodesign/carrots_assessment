@@ -1,0 +1,103 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{setspace}
+\setstretch{1.1}
+
+\title{Product Analyst Assessment -- Paywall A/B Test}
+\author{Candidate: Samy Benmahrez}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{1. Context and Data}
+This analysis evaluates an A/B test of two paywall variants in a mobile app: \emph{Standard} and \emph{Plans}. The goal is to understand impact on (1) conversion from active users to paying users, (2) revenue net of taxes and platform commissions, and (3) retention via subscription renewals.
+
+Two CSV datasets were provided: \texttt{user\_behaviour.csv} (event-level telemetry with event\_date, event\_name, test\_variant, paywall\_type, product\_identifier, and user identifiers) and \texttt{revenuecat.csv} (subscription-level data with product\_identifier, price\_in\_usd, tax\_percentage, commission\_percentage, renewal\_number, refund flags, and timestamps). All transformations and aggregations were done in a Python notebook (pandas) and exported to KPI summary CSVs, then used to build a Looker Studio dashboard.
+
+\section*{2. Methodology and KPI Definitions}
+\textbf{User identity:} \texttt{revenue\_cat\_id} is the main user key across both datasets.\\
+\textbf{Variant assignment:} each \texttt{revenue\_cat\_id} is assigned a single test\_variant (Standard or Plans) based on events in \texttt{user\_behaviour}.
+
+\subsection*{2.1 Conversion Rate}
+Conversion rate (per variant) = \(\frac{\text{users with at least one }payment\_success}{\text{users with any event in that variant}}\), distinct by \texttt{revenue\_cat\_id}. All exposed users are the denominator; a payment\_success event signals conversion.
+
+\subsection*{2.2 Purchases by Paywall}
+Purchases by paywall type = number of distinct users with \texttt{payment\_success}, grouped by (\texttt{test\_variant}, \texttt{paywall\_type}). This shows which paywall surfaces drive revenue per variant.
+
+\subsection*{2.3 Revenue, ARPU, and ARPPU}
+For each non-refunded subscription row in RevenueCat:
+\[
+\text{net\_revenue} = \text{price\_in\_usd} \times (1 - \text{tax\_percentage} - \text{commission\_percentage}).
+\]
+Using this:
+\begin{itemize}
+    \item Total net revenue (per variant) = sum of \texttt{net\_revenue} for subscriptions attached to that variant.
+    \item ARPU = total net revenue \(/\) total users in the variant.
+    \item ARPPU = total net revenue \(/\) paying users in the variant.
+\end{itemize}
+Refunded subscriptions (\texttt{refunded\_at} not null) are excluded.
+
+\subsection*{2.4 Most Purchased Package}
+Product identifiers include suffixes \_a/\_b/\_c. Normalise to a base SKU:
+\[
+\text{product\_base} = \text{product\_identifier without trailing }a/b/c.
+\]
+Count distinct subscribers per (\texttt{test\_variant}, \texttt{product\_base}) to find the dominant package.
+
+\subsection*{2.5 Retention via renewal\_number}
+For each user and variant, compute \(\text{max\_renewal} = \max(\text{renewal\_number})\) across non-refunded subscriptions. Then per variant:
+\begin{itemize}
+    \item Retention 1+ = \% of paying users with \(\text{max\_renewal} \ge 1\)
+    \item Retention 2+ = \% with \(\text{max\_renewal} \ge 2\)
+    \item Retention 3+ = \% with \(\text{max\_renewal} \ge 3\)
+\end{itemize}
+These approximate renewal-based retention across billing cycles. In production these definitions would be validated with Product and Finance stakeholders before finalising.
+
+\section*{3. Results -- Standard vs Plans}
+\subsection*{3.1 Top-line KPIs}
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{1.7cm}cccccc}
+\toprule
+Variant & Users & Paying users & Conversion & Net revenue (\$) & ARPU (\$) & ARPPU (\$) \\
+\midrule
+Plans & 1{,}637 & 260 & 15.88\% & 3{,}339.67 & 2.04 & 12.84 \\
+Standard & 1{,}544 & 405 & 26.23\% & 3{,}804.54 & 2.46 & 9.39 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Interpretation.} Standard converts significantly more users (~26.2\% vs 15.9\%), generates more net revenue (~\$3.80k vs \$3.34k), and higher ARPU (2.46 vs 2.04). Plans monetises each payer more (ARPPU 12.84 vs 9.39) but on fewer payers. Overall, Standard is the stronger default: more users convert, more renew, and total revenue is higher even though Plans extracts more per payer.
+
+\section*{4. Paywalls and Packages}
+\subsection*{4.1 Purchases by Paywall Type}
+Using \texttt{kpi\_purchases\_by\_paywall}, onboarding is the main driver of purchases in both variants; feature and laggard paywalls are secondary. Plans is lower across all paywall types, consistent with its lower conversion. \textbf{Implication:} the onboarding paywall is the highest-leverage surface (copy, pricing, layout, risk reduction).
+
+\subsection*{4.2 Most Purchased Package}
+From \texttt{kpi\_packages} (normalised \texttt{product\_base}), the dominant package is \texttt{gala\_1wt\_1w\_gold} in both variants (394 subscribers in Standard, 219 in Plans). Other packages (\texttt{gala\_1w\_creator}, \texttt{gala\_1y\_creator}, \texttt{gala\_1y\_gold}) have much smaller volume. \textbf{Implication:} revenue is concentrated on one core weekly Gold offer; optimising this SKU is the most leveraged path.
+
+\section*{5. Retention}
+From \texttt{kpi\_retention} (based on \texttt{max\_renewal}):
+\begin{itemize}
+    \item \textbf{Standard:} paying users 402; retention 1+ \(\approx 22.6\%\); 2+ \(\approx 11.7\%\); 3+ \(\approx 6.0\%\).
+    \item \textbf{Plans:} paying users 251; retention 1+ \(\approx 20.3\%\); 2+ \(\approx 7.6\%\); 3+ \(\approx 2.4\%\).
+\end{itemize}
+Standard converts more and retains a higher share through successive renewals; Plans drops off faster after the first renewal, limiting LTV despite higher ARPPU.
+
+\section*{6. Synthesis and Recommendations}
+\begin{itemize}
+    \item \textbf{Set Standard as the default} variant: it wins on conversion, total net revenue, ARPU, and renewal-based retention.
+    \item \textbf{Use Plans selectively} for high-intent segments (heavy users, high-WTP geos/channels) to leverage its higher ARPPU.
+    \item \textbf{Focus optimisation on onboarding} paywalls: value messaging, trial/guarantee, social proof, and showing value before asking.
+    \item \textbf{Double down on \texttt{gala\_1wt\_1w\_gold}}: experiment with price sensitivity, framing, limited-time offers, or bundles anchored on the weekly Gold plan.
+    \item \textbf{Future analyses:} segment by country/acquisition channel; cohort-based retention by start month and variant; evaluate non-revenue impacts if available.
+\end{itemize}
+
+\section*{7. Looker Studio Dashboard}
+KPIs and breakdowns are exposed in an interactive dashboard (filters for variant and date; pages for overview, paywalls \& packages, retention). Dashboard link: \href{https://lookerstudio.google.com/reporting/4702f26e-4c79-4142-85d8-5dc097929d57}{https://lookerstudio.google.com/reporting/4702f26e-4c79-4142-85d8-5dc097929d57}.
+
+\end{document}

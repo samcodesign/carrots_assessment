@@ -7,3 +7,12 @@ __pycache__/
 Thumbs.db
 .vscode/
 *.log
+
+# LaTeX build artifacts
+*.aux
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.toc
+*.out
+*.pdf
