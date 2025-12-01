@@ -102,4 +102,42 @@ Standard converts more and retains a higher share through successive renewals; P
 \section*{7. Looker Studio Dashboard}
 KPIs and breakdowns are exposed in an interactive dashboard (filters for variant and date; pages for overview, paywalls \& packages, retention). Dashboard link: \href{https://lookerstudio.google.com/reporting/4702f26e-4c79-4142-85d8-5dc097929d57}{https://lookerstudio.google.com/reporting/4702f26e-4c79-4142-85d8-5dc097929d57}.
 
+\section*{8. Bonus -- Churn flows leading to \texttt{rc\_cancellation}}
+To understand how users exit, I analysed event sequences leading up to the first \texttt{rc\_cancellation} per churned user.
+
+\textbf{Method (brief).} Filtered users with \texttt{rc\_cancellation}; sorted their events by \texttt{event\_timestamp} and truncated at the first cancellation; collapsed consecutive duplicate events; kept the last 4 events (3 preceding + \texttt{rc\_cancellation}); aggregated identical sequences into flows; reported the top 10 flows by user count.
+
+\begin{center}
+\begin{tabular}{p{10cm}r}
+\toprule
+Flow & Users \\
+\midrule
+tool\_opened $\to$ show\_paywalls $\to$ skip\_paywalls $\to$ rc\_cancellation & 27 \\
+image\_generated $\to$ press\_generate $\to$ image\_generated $\to$ rc\_cancellation & 26 \\
+show\_paywalls $\to$ skip\_paywalls $\to$ avatar\_creation $\to$ rc\_cancellation & 19 \\
+payment\_initiated $\to$ payment\_cancelled $\to$ skip\_paywalls $\to$ rc\_cancellation & 17 \\
+skip\_paywalls $\to$ show\_paywalls $\to$ skip\_paywalls $\to$ rc\_cancellation & 16 \\
+payment\_success $\to$ ftue\_landmarkt $\to$ tool\_opened $\to$ rc\_cancellation & 14 \\
+skip\_paywalls $\to$ avatar\_creation $\to$ tool\_opened $\to$ rc\_cancellation & 13 \\
+show\_paywalls $\to$ payment\_initiated $\to$ payment\_cancelled $\to$ rc\_cancellation & 12 \\
+show\_paywalls $\to$ skip\_paywalls $\to$ show\_paywalls $\to$ rc\_cancellation & 12 \\
+avatar\_creation $\to$ show\_paywalls $\to$ skip\_paywalls $\to$ rc\_cancellation & 11 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{What this suggests.}
+\begin{itemize}
+    \item Many churners oscillate around paywalls (\texttt{show\_paywalls}/\texttt{skip\_paywalls}), hinting at paywall fatigue or weak value perception before exit.
+    \item Payment friction appears: \texttt{payment\_initiated} $\to$ \texttt{payment\_cancelled} flows show intent blocked by cancellations—high-value paths to investigate for UX, pricing, or errors.
+    \item Feature-then-churn flows (e.g., \texttt{image\_generated}, \texttt{avatar\_creation}) suggest users try AI/creative tools but churn soon after—either value is satisfied quickly or subscription value is unclear.
+\end{itemize}
+
+\textbf{How I would use this as a PM.}
+\begin{itemize}
+    \item Reduce paywall fatigue: throttle repeats, vary messaging, show incremental value before re-showing.
+    \item Fix payment friction: audit payment error logs/cancellation reasons, simplify steps, add recovery UX for retries.
+    \item Link features to subscription value: in-feature prompts clarifying benefits, consider time-limited trials after engagement thresholds.
+\end{itemize}
+
 \end{document}
