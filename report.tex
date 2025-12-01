@@ -24,7 +24,11 @@ Two CSV datasets were provided: \texttt{user\_behaviour.csv} (event-level teleme
 \textbf{Variant assignment:} each \texttt{revenue\_cat\_id} is assigned a single test\_variant (Standard or Plans) based on events in \texttt{user\_behaviour}.
 
 \subsection*{2.1 Conversion Rate}
-Conversion rate (per variant) = \(\frac{\text{users with at least one }payment\_success}{\text{users with any event in that variant}}\), distinct by \texttt{revenue\_cat\_id}. All exposed users are the denominator; a payment\_success event signals conversion.
+Conversion rate (per variant):
+\[
+\text{Conversion}_{v} = \frac{\#\{\text{users with at least one }payment\_success\}}{\#\{\text{users with any event in variant }v\}}
+\]
+Users are distinct by \texttt{revenue\_cat\_id}; all exposed users are the denominator and \texttt{payment\_success} is the conversion signal.
 
 \subsection*{2.2 Purchases by Paywall}
 Purchases by paywall type = number of distinct users with \texttt{payment\_success}, grouped by (\texttt{test\_variant}, \texttt{paywall\_type}). This shows which paywall surfaces drive revenue per variant.
@@ -32,30 +36,28 @@ Purchases by paywall type = number of distinct users with \texttt{payment\_succe
 \subsection*{2.3 Revenue, ARPU, and ARPPU}
 For each non-refunded subscription row in RevenueCat:
 \[
-\text{net\_revenue} = \text{price\_in\_usd} \times (1 - \text{tax\_percentage} - \text{commission\_percentage}).
+\text{net\_revenue} = \text{price\_in\_usd} \times \bigl(1 - \text{tax\_percentage} - \text{commission\_percentage}\bigr)
 \]
 Using this:
-\begin{itemize}
-    \item Total net revenue (per variant) = sum of \texttt{net\_revenue} for subscriptions attached to that variant.
-    \item ARPU = total net revenue \(/\) total users in the variant.
-    \item ARPPU = total net revenue \(/\) paying users in the variant.
-\end{itemize}
+\begin{align*}
+\text{Total net revenue}_{v} &= \sum \text{net\_revenue}_i \quad \text{for subscriptions in variant } v \\
+\text{ARPU}_{v} &= \frac{\text{Total net revenue}_{v}}{\text{users}_{v}} \\
+\text{ARPPU}_{v} &= \frac{\text{Total net revenue}_{v}}{\text{paying users}_{v}}
+\end{align*}
 Refunded subscriptions (\texttt{refunded\_at} not null) are excluded.
 
 \subsection*{2.4 Most Purchased Package}
 Product identifiers include suffixes \_a/\_b/\_c. Normalise to a base SKU:
 \[
-\text{product\_base} = \text{product\_identifier without trailing }a/b/c.
+\text{product\_base} = \text{product\_identifier without trailing } a/b/c
 \]
 Count distinct subscribers per (\texttt{test\_variant}, \texttt{product\_base}) to find the dominant package.
 
 \subsection*{2.5 Retention via renewal\_number}
 For each user and variant, compute \(\text{max\_renewal} = \max(\text{renewal\_number})\) across non-refunded subscriptions. Then per variant:
-\begin{itemize}
-    \item Retention 1+ = \% of paying users with \(\text{max\_renewal} \ge 1\)
-    \item Retention 2+ = \% with \(\text{max\_renewal} \ge 2\)
-    \item Retention 3+ = \% with \(\text{max\_renewal} \ge 3\)
-\end{itemize}
+\[
+\text{Retention }k+ = \frac{\#\{\text{paying users with } \text{max\_renewal} \ge k\}}{\#\{\text{paying users}\}}, \quad k \in \{1,2,3\}
+\]
 These approximate renewal-based retention across billing cycles. In production these definitions would be validated with Product and Finance stakeholders before finalising.
 
 \section*{3. Results -- Standard vs Plans}
